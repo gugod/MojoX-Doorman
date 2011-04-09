@@ -13,15 +13,18 @@ MojoX::Doorman - Take care of all your authentication needs
 =head1 SYNOPSIS
 
     # Enable the plugin in your app.
-
     sub startup {
         my $self = shift;
-
         $self->plugin('doorman');
-
         ...
     }
 
+    ## Also need to modify the last part in script/myapp
+    builder {
+        enable "Session";
+        enable "DoormanAuthenticaton", authenticator => \&my_authenticator;
+        Mojolicious::Command->start;
+    }
 
     # Some view helpers will be there to help.
     <form method="post" action="<%= user_sign_in_path %>">
@@ -35,6 +38,58 @@ MojoX::Doorman - Take care of all your authentication needs
 MojoX::Doorman is a Mojolicious plugin that makes it easier
 to wrie Mojo apps without dealing much of authentication code.
 The authentication backends come from L<Doorman>.
+
+=head1 SETUP
+
+Doorman is based on PSGI, which means, MojoX::Doorman will require you
+to use PSGI Server for your Mojo app.
+
+There are some tweaks you need to do in your app code in order
+to enable it.
+
+First, you need to modify your server script. For instance, the
+last line of C<script/myapp> usually looks like this:
+
+    Mojolicious::Commands->start;
+
+Change that to:
+
+    use Plack::Builder;
+    builder {
+        enable "Session";
+        enable "DoormanOpenID";
+        Mojolicious::Commands->start;
+    }
+
+You may enable multiple Doorman authentication middlewares there. See C<Doorman> for
+more detail info.
+
+If you are using C<Mojolicious::Lite>, the very last line of your app should be:
+
+    app->start;
+
+Change that to
+
+    use Plack::Builder;
+    builder {
+        enable "Session";
+        enable "DoormanOpenID";
+        app->start;
+    }
+
+Finally, enable the plugin in C<startup> method:
+
+    sub startup {
+        my $self = shift;
+        $self->plugin('doorman');
+        ...
+    }
+
+For C<Mojolicious::Lite> apps, that's just:
+
+    plugin "doorman";
+
+The plugin provides many view helpers to interact with the middleware.
 
 =head1 VIEW HELPERS
 
