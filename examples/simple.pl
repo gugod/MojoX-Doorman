@@ -1,4 +1,6 @@
-#!/usr/bin/env perl
+#!/usr/bin/env plackup -I ../lib -R ../lib
+
+##!/usr/bin/env perl
 
 use Mojolicious::Lite;
 
@@ -14,32 +16,59 @@ get "/users/sign_in" => sub {
     $self->render("sign_in");
 };
 
+get "/users/sign_out" => sub {
+    my $self = shift;
+    $self->flash("message" => "Farewell");
+    $self->redirect_to("/");
+};
+
 post "/users/sign_in" => sub {
     my $self = shift;
     $self->flash("message" => "OK. You are now in.");
     $self->redirect_to("/");
 };
 
-app->start;
+
+{
+    use Plack::Builder;
+    use Plack::Request;
+
+    sub my_simple_authenticator {
+        my ($mw, $env) = @_;
+        my $req = Plack::Request->new($env);
+        return $req->param("username");
+    }
+}
+
+builder {
+    enable "Session";
+    enable "DoormanAuthentication", authenticator => \&my_simple_authenticator;
+    app->start;
+}
 
 __DATA__
 
 @@ home.html.ep
 % layout "default";
+% title "Simple App";
 
-<h1>Simple App</h1>
-
-<p>Hi guest. Please <a href="<%= user_sign_in_path %>">sign in to set your username.</a></p>
+<p>
+% if (current_user) {
+Hi <%= $self->current_user %>. Please <a href="<%= user_sign_out_path %>">sign out</a></p>
+% } else {
+Hi Guest. Please <a href="<%= user_sign_in_path %>">sign in.</a>
+% }
+</p>
 
 @@ sign_in.html.ep
 % layout "default";
-<h1>Sign In</h1>
+% title "Simple App >> Sign In";
 
 <p>No need to provide password here, just your name.</p>
 
 <form method="post" action="<%= user_sign_in_path %>">
     <p>
-        Username: <input type="text" name="username"><br>
+        Username: <input type="text" name="username" autofocus><br>
         <input type="submit" value="Set my username">
     </p>
 </form>
@@ -54,8 +83,10 @@ __DATA__
             padding: 5px; border-radius: 5px;
         }
     </style>
+    <title><%= title %></title>
     </head>
     <body>
+    <h1><%= title %></h1>
     <% if (flash("message")) { %>
         <p class="flash-message"><%= flash("message") %></p>
     <% } %>
